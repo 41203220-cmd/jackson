@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Vibe Pomodoro</title>
+  <style>
+    :root{
+      --bg: #0b0f1a;
+      --card: rgba(255,255,255,.06);
+      --card2: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.65);
+      --accent: #8be9fd;
+      --accent2:#bd93f9;
+      --danger:#ff5555;
+      --ok:#50fa7b;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --radius: 20px;
+    }
+    [data-theme="light"]{
+      --bg: #f7f7fb;
+      --card: rgba(0,0,0,.06);
+      --card2: rgba(0,0,0,.10);
+      --text: rgba(0,0,0,.88);
+      --muted: rgba(0,0,0,.55);
+      --accent: #2563eb;
+      --accent2:#7c3aed;
+      --shadow: 0 18px 40px rgba(0,0,0,.12);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Heiti TC", Arial;
+      background:
+        radial-gradient(900px 500px at 10% 15%, rgba(139,233,253,.18), transparent 55%),
+        radial-gradient(900px 500px at 90% 10%, rgba(189,147,249,.16), transparent 55%),
+        radial-gradient(900px 500px at 50% 90%, rgba(80,250,123,.10), transparent 60%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 28px 14px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+    }
+    @media (max-width: 860px){
+      .wrap{grid-template-columns:1fr}
+    }
+    .card{
+      background: linear-gradient(180deg, var(--card), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding: 18px;
+      backdrop-filter: blur(10px);
+    }
+    [data-theme="light"] .card{
+      border: 1px solid rgba(0,0,0,.10);
+      background: linear-gradient(180deg, var(--card), rgba(0,0,0,.02));
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:10px;
+      user-select:none;
+    }
+    .dot{
+      width:12px;height:12px;border-radius:999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      box-shadow: 0 0 18px rgba(139,233,253,.35);
+    }
+    .title{
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .subtitle{
+      font-size: 12px; color: var(--muted);
+      margin-top: 2px;
+    }
+    .chiprow{display:flex; gap:8px; flex-wrap:wrap;}
+    .chip{
+      font-size:12px;
+      padding: 8px 10px;
+      border-radius:999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--muted);
+      cursor:pointer;
+      transition: .15s transform, .15s background, .15s color;
+      user-select:none;
+    }
+    [data-theme="light"] .chip{
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(0,0,0,.04);
+    }
+    .chip:hover{transform: translateY(-1px); color: var(--text);}
+    .chip.active{
+      color: var(--text);
+      background: rgba(139,233,253,.12);
+      border-color: rgba(139,233,253,.35);
+    }
+
+    .center{
+      display:grid;
+      place-items:center;
+      padding: 10px 0 6px;
+    }
+    .ring{
+      width: 320px;
+      max-width: 82vw;
+      aspect-ratio: 1/1;
+      position:relative;
+      display:grid;
+      place-items:center;
+    }
+    .time{
+      font-size: 64px;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+    .mode{
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .hint{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align:center;
+      line-height: 1.4;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      margin-top: 12px;
+      flex-wrap:wrap;
+    }
+    button{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 12px 14px;
+      border-radius: 14px;
+      cursor:pointer;
+      transition: .15s transform, .15s background, .15s border;
+      user-select:none;
+      font-weight: 700;
+    }
+    [data-theme="light"] button{
+      border: 1px solid rgba(0,0,0,.14);
+      background: rgba(0,0,0,.04);
+    }
+    button:hover{transform: translateY(-1px); background: rgba(255,255,255,.10);}
+    .primary{
+      background: linear-gradient(90deg, rgba(139,233,253,.22), rgba(189,147,249,.18));
+      border-color: rgba(139,233,253,.35);
+    }
+    .danger{ border-color: rgba(255,85,85,.35); background: rgba(255,85,85,.08);}
+    .ghost{ background: transparent; }
+    .small{ padding: 10px 12px; font-weight: 700; font-size: 13px; border-radius: 12px;}
+
+    .grid{
+      display:grid;
+      gap:12px;
+    }
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .label{color: var(--muted); font-size: 13px;}
+    .value{font-weight: 800;}
+    .divider{
+      height:1px;
+      background: rgba(255,255,255,.10);
+      margin: 8px 0;
+    }
+    [data-theme="light"] .divider{background: rgba(0,0,0,.10);}
+
+    .toggle{
+      display:flex; align-items:center; gap:10px;
+      font-size:13px;
+      color: var(--muted);
+      user-select:none;
+    }
+    .switch{
+      width:44px;height:26px;border-radius:999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
+      position:relative;
+      cursor:pointer;
+      flex: 0 0 auto;
+    }
+    [data-theme="light"] .switch{
+      background: rgba(0,0,0,.08);
+      border: 1px solid rgba(0,0,0,.12);
+    }
+    .knob{
+      width:20px;height:20px;border-radius:999px;
+      background: var(--text);
+      position:absolute; top:50%; left:4px;
+      transform: translateY(-50%);
+      transition: .18s left, .18s background;
+    }
+    .switch.on{ background: rgba(80,250,123,.18); border-color: rgba(80,250,123,.35);}
+    .switch.on .knob{ left: 20px; background: white;}
+
+    input[type="number"]{
+      width:92px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      font-weight: 800;
+      outline:none;
+    }
+    [data-theme="light"] input[type="number"]{
+      border: 1px solid rgba(0,0,0,.14);
+      background: rgba(0,0,0,.04);
+    }
+
+    .focusOnly .rightPanel{display:none;}
+    .focusOnly .wrap{grid-template-columns: 1fr;}
+    .badge{
+      font-size:12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.14);
+      color: var(--muted);
+      background: rgba(255,255,255,.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- LEFT: Timer -->
+    <section class="card">
+      <div class="topbar">
+        <div class="brand">
+          <div class="dot"></div>
+          <div>
+            <div class="title">Vibe Pomodoro</div>
+            <div class="subtitle">Space：開始/暫停　R：重置　S：跳過</div>
+          </div>
+        </div>
+        <div class="chiprow">
+          <div class="chip" id="themeBtn">🌗 主題</div>
+          <div class="chip" id="focusBtn">🎧 專注</div>
+        </div>
+      </div>
+
+      <div class="chiprow" style="margin: 8px 0 0;">
+        <div class="chip active" data-mode="focus">專注</div>
+        <div class="chip" data-mode="short">短休</div>
+        <div class="chip" data-mode="long">長休</div>
+        <span class="badge" id="cycleBadge">第 0 / 4 顆番茄</span>
+      </div>
+
+      <div class="center">
+        <div class="ring">
+          <svg width="100%" height="100%" viewBox="0 0 220 220" style="position:absolute; inset:0;">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="currentColor" />
+                <stop offset="1" stop-color="currentColor" />
+              </linearGradient>
+            </defs>
+            <circle cx="110" cy="110" r="92" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="14"></circle>
+            <circle id="progressCircle" cx="110" cy="110" r="92" fill="none"
+              stroke="url(#g)" stroke-width="14" stroke-linecap="round"
+              stroke-dasharray="578" stroke-dashoffset="578"
+              transform="rotate(-90 110 110)"
+              style="color: var(--accent); filter: drop-shadow(0 0 10px rgba(139,233,253,.25));">
+            </circle>
+          </svg>
+
+          <div style="position:relative; text-align:center;">
+            <div class="time" id="timeText">25:00</div>
+            <div class="mode" id="modeText">專注中</div>
+            <div class="hint" id="hintText">目標：專心把一件事做完。<br/>完成 4 次專注 → 長休。</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="primary" id="startBtn">▶ 開始</button>
+          <button class="small" id="skipBtn">⏭ 跳過</button>
+          <button class="small danger" id="resetBtn">↺ 重置</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Settings & Stats -->
+    <section class="card rightPanel">
+      <div class="topbar" style="margin-bottom:6px;">
+        <div>
+          <div class="title">設定 & 統計</div>
+          <div class="subtitle">設定會自動保存到瀏覽器</div>
+        </div>
+        <div class="chiprow">
+          <div class="chip" id="notifyBtn">🔔 通知</div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <div class="label">專注 (分鐘)</div>
+          <input type="number" min="1" max="180" id="focusMin" />
+        </div>
+        <div class="row">
+          <div class="label">短休 (分鐘)</div>
+          <input type="number" min="1" max="60" id="shortMin" />
+        </div>
+        <div class="row">
+          <div class="label">長休 (分鐘)</div>
+          <input type="number" min="1" max="90" id="longMin" />
+        </div>
+        <div class="row">
+          <div class="label">每幾顆番茄長休</div>
+          <input type="number" min="2" max="12" id="longEvery" />
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="toggle">
+            <div class="switch" id="autoSwitch"><div class="knob"></div></div>
+            <div>時間到自動切換下一段</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="toggle">
+            <div class="switch" id="autoStart"><div class="knob"></div></div>
+            <div>切換後自動開始倒數</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="toggle">
+            <div class="switch" id="soundSwitch"><div class="knob"></div></div>
+            <div>結束音效提示</div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+          <div class="label">今天完成番茄</div>
+          <div class="value" id="todayCount">0</div>
+        </div>
+        <div class="row">
+          <div class="label">總完成番茄</div>
+          <div class="value" id="totalCount">0</div>
+        </div>
+
+        <div class="controls" style="justify-content:flex-start;">
+          <button class="ghost" id="clearTodayBtn">清空今天</button>
+          <button class="ghost danger" id="clearAllBtn">清空全部</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ====== Vibe Pomodoro: single-file, no deps ======
+
+    const $ = (s)=>document.querySelector(s);
+    const chips = [...document.querySelectorAll('.chip[data-mode]')];
+
+    const progressCircle = $('#progressCircle');
+    const timeText = $('#timeText');
+    const modeText = $('#modeText');
+    const hintText = $('#hintText');
+    const startBtn = $('#startBtn');
+    const resetBtn = $('#resetBtn');
+    const skipBtn = $('#skipBtn');
+
+    const focusMin = $('#focusMin');
+    const shortMin = $('#shortMin');
+    const longMin  = $('#longMin');
+    const longEvery= $('#longEvery');
+
+    const autoSwitch = $('#autoSwitch');
+    const autoStart  = $('#autoStart');
+    const soundSwitch= $('#soundSwitch');
+
+    const todayCount = $('#todayCount');
+    const totalCount = $('#totalCount');
+    const cycleBadge = $('#cycleBadge');
+
+    const themeBtn = $('#themeBtn');
+    const focusBtn = $('#focusBtn');
+    const notifyBtn = $('#notifyBtn');
+
+    const clearTodayBtn = $('#clearTodayBtn');
+    const clearAllBtn = $('#clearAllBtn');
+
+    const CIRC = 2 * Math.PI * 92; // r=92
+    progressCircle.setAttribute('stroke-dasharray', String(CIRC));
+
+    const STORAGE_KEY = 'vibe_pomodoro_v1';
+
+    const defaults = {
+      theme: 'dark',
+      focusOnly: false,
+      mode: 'focus',            // focus | short | long
+      durations: { focus: 25, short: 5, long: 15 }, // minutes
+      longEvery: 4,
+      autoSwitch: true,
+      autoStart: false,
+      sound: true,
+      notify: false,
+      // stats
+      totalPomodoros: 0,
+      // daily stats (keyed by YYYY-MM-DD)
+      daily: {}
+    };
+
+    let state = loadState();
+
+    // timer runtime vars
+    let running = false;
+    let endAt = null;       // timestamp ms
+    let remainMs = getModeMs(state.mode); // if paused
+    let tickHandle = null;
+    let completedInCycle = 0;
+
+    // restore cycle completed from badge logic (not persisted for simplicity)
+    // you can persist if you want.
+    function getTodayKey(){
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(!raw) return structuredClone(defaults);
+        const obj = JSON.parse(raw);
+        return deepMerge(structuredClone(defaults), obj);
+      }catch(e){
+        return structuredClone(defaults);
+      }
+    }
+    function saveState(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+    function deepMerge(base, extra){
+      for(const k in extra){
+        if(extra[k] && typeof extra[k]==='object' && !Array.isArray(extra[k])){
+          base[k] = deepMerge(base[k] ?? {}, extra[k]);
+        }else{
+          base[k] = extra[k];
+        }
+      }
+      return base;
+    }
+
+    function getModeMs(mode){
+      const min = state.durations[mode];
+      return Math.max(1, min) * 60 * 1000;
+    }
+
+    function fmt(ms){
+      const s = Math.max(0, Math.floor(ms/1000));
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s%60).padStart(2,'0');
+      return `${mm}:${ss}`;
+    }
+
+    function setProgress(msLeft, msTotal){
+      const p = msTotal<=0 ? 0 : (msLeft / msTotal);
+      const offset = CIRC * (1 - p);
+      progressCircle.setAttribute('stroke-dashoffset', String(offset));
+    }
+
+    function setMode(mode, {fromAuto=false} = {}){
+      state.mode = mode;
+      saveState();
+
+      chips.forEach(c => c.classList.toggle('active', c.dataset.mode===mode));
+
+      const labels = {
+        focus: '專注中',
+        short: '短休中',
+        long:  '長休中'
+      };
+      const hints = {
+        focus: '目標：專心把一件事做完。<br/>完成多次專注 → 長休。',
+        short: '站起來喝水、走兩步，別滑太久手機。',
+        long:  '好好放鬆，補能量，等一下再戰。'
+      };
+      modeText.textContent = labels[mode];
+      hintText.innerHTML = hints[mode];
+
+      stopTimer(false); // stop tick but keep running=false
+      remainMs = getModeMs(mode);
+      endAt = null;
+      render();
+
+      if(fromAuto && state.autoStart){
+        startTimer();
+      }
+    }
+
+    function render(){
+      const msTotal = getModeMs(state.mode);
+      const msLeft = running ? Math.max(0, endAt - Date.now()) : remainMs;
+      timeText.textContent = fmt(msLeft);
+      setProgress(msLeft, msTotal);
+
+      const todayKey = getTodayKey();
+      const today = state.daily[todayKey] ?? 0;
+      todayCount.textContent = String(today);
+      totalCount.textContent = String(state.totalPomodoros);
+
+      cycleBadge.textContent = `第 ${completedInCycle} / ${state.longEvery} 顆番茄`;
+
+      startBtn.textContent = running ? '⏸ 暫停' : (remainMs < msTotal ? '▶ 繼續' : '▶ 開始');
+    }
+
+    function startTimer(){
+      if(running) return;
+      running = true;
+      endAt = Date.now() + remainMs;
+      tickHandle = setInterval(tick, 250);
+      render();
+    }
+
+    function stopTimer(keepRemain=true){
+      if(tickHandle) clearInterval(tickHandle);
+      tickHandle = null;
+      if(running){
+        const left = Math.max(0, endAt - Date.now());
+        if(keepRemain) remainMs = left;
+      }
+      running = false;
+      endAt = null;
+      render();
+    }
+
+    function resetTimer(){
+      stopTimer(false);
+      remainMs = getModeMs(state.mode);
+      render();
+    }
+
+    function skipSegment(){
+      stopTimer(false);
+      goNext(true);
+    }
+
+    function goNext(fromAuto=false){
+      // after focus ends, increment pomodoro counts
+      if(state.mode === 'focus'){
+        incrementPomodoro();
+        completedInCycle += 1;
+
+        const shouldLong = (completedInCycle >= state.longEvery);
+        if(shouldLong){
+          completedInCycle = 0;
+          setMode('long', {fromAuto});
+        }else{
+          setMode('short', {fromAuto});
+        }
+        return;
+      }
+
+      // after break ends -> back to focus
+      setMode('focus', {fromAuto});
+    }
+
+    function incrementPomodoro(){
+      state.totalPomodoros += 1;
+      const key = getTodayKey();
+      state.daily[key] = (state.daily[key] ?? 0) + 1;
+      saveState();
+    }
+
+    function beep(){
+      try{
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = 880;
+        g.gain.value = 0.06;
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.start();
+        setTimeout(()=>{ o.stop(); ctx.close(); }, 160);
+      }catch(e){}
+    }
+
+    function sendNotify(title, body){
+      if(!state.notify) return;
+      if(!('Notification' in window)) return;
+      if(Notification.permission !== 'granted') return;
+      new Notification(title, { body });
+    }
+
+    function tick(){
+      const left = endAt - Date.now();
+      if(left <= 0){
+        stopTimer(false);
+        remainMs = 0;
+        render();
+
+        if(state.sound) beep();
+        sendNotify('時間到！', `${modeText.textContent} 結束了`);
+
+        if(state.autoSwitch){
+          goNext(true);
+        }
+        return;
+      }
+      render();
+    }
+
+    // ====== UI bind ======
+    chips.forEach(c=>{
+      c.addEventListener('click', ()=>{
+        setMode(c.dataset.mode);
+      });
+    });
+
+    startBtn.addEventListener('click', ()=>{
+      if(running) stopTimer(true);
+      else startTimer();
+    });
+
+    resetBtn.addEventListener('click', resetTimer);
+    skipBtn.addEventListener('click', skipSegment);
+
+    function bindSwitch(el, getter, setter){
+      const update = ()=> el.classList.toggle('on', getter());
+      el.addEventListener('click', ()=>{
+        setter(!getter());
+        saveState();
+        update();
+      });
+      update();
+    }
+
+    bindSwitch(autoSwitch, ()=>state.autoSwitch, v=>state.autoSwitch=v);
+    bindSwitch(autoStart,  ()=>state.autoStart,  v=>state.autoStart=v);
+    bindSwitch(soundSwitch,()=>state.sound,      v=>state.sound=v);
+
+    function bindNumber(input, getter, setter){
+      input.value = getter();
+      input.addEventListener('change', ()=>{
+        const v = Number(input.value);
+        if(!Number.isFinite(v)) return;
+        setter(v);
+        saveState();
+
+        // if editing current mode, refresh timer length when not running
+        if(!running){
+          remainMs = getModeMs(state.mode);
+        }
+        render();
+      });
+    }
+    bindNumber(focusMin, ()=>state.durations.focus, v=>state.durations.focus=clamp(v,1,180));
+    bindNumber(shortMin, ()=>state.durations.short, v=>state.durations.short=clamp(v,1,60));
+    bindNumber(longMin,  ()=>state.durations.long,  v=>state.durations.long=clamp(v,1,90));
+    bindNumber(longEvery,()=>state.longEvery,       v=>state.longEvery=clamp(v,2,12));
+
+    function clamp(n,a,b){ return Math.max(a, Math.min(b, Math.round(n))); }
+
+    themeBtn.addEventListener('click', ()=>{
+      state.theme = (state.theme === 'dark') ? 'light' : 'dark';
+      applyTheme();
+      saveState();
+    });
+
+    focusBtn.addEventListener('click', ()=>{
+      state.focusOnly = !state.focusOnly;
+      applyFocusOnly();
+      saveState();
+    });
+
+    function applyTheme(){
+      document.documentElement.setAttribute('data-theme', state.theme);
+    }
+    function applyFocusOnly(){
+      document.body.classList.toggle('focusOnly', !!state.focusOnly);
+      focusBtn.classList.toggle('active', !!state.focusOnly);
+    }
+
+    notifyBtn.addEventListener('click', async ()=>{
+      if(!('Notification' in window)){
+        alert('這台裝置/瀏覽器不支援通知。');
+        return;
+      }
+      if(Notification.permission === 'granted'){
+        state.notify = !state.notify;
+        notifyBtn.classList.toggle('active', state.notify);
+        saveState();
+        return;
+      }
+      const p = await Notification.requestPermission();
+      if(p === 'granted'){
+        state.notify = true;
+        notifyBtn.classList.add('active');
+        saveState();
+        sendNotify('通知已開啟', '時間到我會提醒你');
+      }else{
+        alert('你拒絕了通知權限。');
+      }
+    });
+
+    clearTodayBtn.addEventListener('click', ()=>{
+      const key = getTodayKey();
+      state.daily[key] = 0;
+      saveState();
+      render();
+    });
+
+    clearAllBtn.addEventListener('click', ()=>{
+      if(!confirm('確定要清空全部統計與設定？')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      state = loadState();
+      completedInCycle = 0;
+      running = false;
+      endAt = null;
+      remainMs = getModeMs(state.mode);
+      applyTheme();
+      applyFocusOnly();
+      syncNotifyBtn();
+      syncChips();
+      syncInputs();
+      render();
+    });
+
+    function syncNotifyBtn(){
+      notifyBtn.classList.toggle('active', !!state.notify);
+    }
+    function syncChips(){
+      chips.forEach(c => c.classList.toggle('active', c.dataset.mode===state.mode));
+    }
+    function syncInputs(){
+      focusMin.value = state.durations.focus;
+      shortMin.value = state.durations.short;
+      longMin.value  = state.durations.long;
+      longEvery.value= state.longEvery;
+      autoSwitch.classList.toggle('on', !!state.autoSwitch);
+      autoStart.classList.toggle('on',  !!state.autoStart);
+      soundSwitch.classList.toggle('on',!!state.sound);
+    }
+
+    // keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if(e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+      if(e.code === 'Space'){
+        e.preventDefault();
+        if(running) stopTimer(true);
+        else startTimer();
+      }
+      if(e.key.toLowerCase() === 'r') resetTimer();
+      if(e.key.toLowerCase() === 's') skipSegment();
+    });
+
+    // init
+    applyTheme();
+    applyFocusOnly();
+    syncNotifyBtn();
+    setMode(state.mode); // sets remainMs + render
+    render();
+  </script>
+</body>
+</html>
